@@ -10,11 +10,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev Mock USDC token for testing purposes
  */
 contract MockUSDC is ERC20, ERC20Permit, Ownable {
-    uint8 private _decimals = 6; // USDC has 6 decimals
+    uint8 private _decimals = 6; 
     
-    // Faucet functionality for testing
     mapping(address => uint256) public lastFaucetClaim;
-    uint256 public constant FAUCET_AMOUNT = 1000 * 10**6; // 1000 USDC
+    uint256 public constant FAUCET_AMOUNT = 1000 * 10**6; 
     uint256 public constant FAUCET_COOLDOWN = 1 days;
 
     event FaucetClaimed(address indexed user, uint256 amount);
@@ -23,8 +22,7 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
     constructor(
         address initialOwner
     ) ERC20("Mock USDC", "mUSDC") ERC20Permit("Mock USDC") Ownable(initialOwner) {
-        // Mint initial supply to owner
-        _mint(initialOwner, 1000000 * 10**6); // 1M USDC
+        _mint(initialOwner, 1000000 * 10**6); 
     }
 
     /**
