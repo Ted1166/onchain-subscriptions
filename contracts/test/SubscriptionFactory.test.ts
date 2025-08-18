@@ -8,25 +8,20 @@ describe("SubscriptionFactory", function () {
   async function deployFixture() {
     const [owner, creator1, creator2, subscriber1, subscriber2, subscriber3] = await ethers.getSigners();
 
-    // Deploy MockUSDC
     const MockUSDC = await ethers.getContractFactory("MockUSDC");
     const mockUSDC = await MockUSDC.deploy(owner.address);
     await mockUSDC.waitForDeployment();
 
-    // Deploy SubscriptionFactory
     const SubscriptionFactory = await ethers.getContractFactory("SubscriptionFactory");
     const subscriptionFactory = await SubscriptionFactory.deploy(owner.address);
     await subscriptionFactory.waitForDeployment();
 
-    // Get SubscriberNFT address
     const subscriberNFTAddress = await subscriptionFactory.subscriberNFT();
     const subscriberNFT = await ethers.getContractAt("SubscriberNFT", subscriberNFTAddress);
 
-    // Add supported tokens
     await subscriptionFactory.addSupportedToken(await mockUSDC.getAddress(), "mUSDC");
     await subscriptionFactory.addSupportedToken(ethers.ZeroAddress, "ETH");
 
-    // Give test accounts some USDC
     await mockUSDC.mint(creator1.address, ethers.parseUnits("1000", 6));
     await mockUSDC.mint(creator2.address, ethers.parseUnits("1000", 6));
     await mockUSDC.mint(subscriber1.address, ethers.parseUnits("1000", 6));
@@ -60,7 +55,7 @@ describe("SubscriptionFactory", function () {
 
     it("Should have correct initial platform fee rate", async function () {
       const { subscriptionFactory } = await loadFixture(deployFixture);
-      expect(await subscriptionFactory.platformFeeRate()).to.equal(250); // 2.5%
+      expect(await subscriptionFactory.platformFeeRate()).to.equal(250); 
     });
   });
 
@@ -147,7 +142,7 @@ describe("SubscriptionFactory", function () {
         subscriptionFactory.connect(creator1).registerCreator(
           "Test Creator",
           "Description",
-          [creator1.address] // Random address as unsupported token
+          [creator1.address] 
         )
       ).to.be.revertedWith("Token not supported");
     });
@@ -159,7 +154,6 @@ describe("SubscriptionFactory", function () {
       const { subscriptionFactory, mockUSDC, creator1 } = fixture;
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Register creator
       await subscriptionFactory.connect(creator1).registerCreator(
         "Test Creator",
         "A test creator",
@@ -236,7 +230,6 @@ describe("SubscriptionFactory", function () {
       const { subscriptionFactory, mockUSDC, creator1, subscriber1 } = fixture;
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Register creator
       await subscriptionFactory.connect(creator1).registerCreator(
         "Test Creator",
         "A test creator",
@@ -246,7 +239,6 @@ describe("SubscriptionFactory", function () {
       const vaultAddress = await subscriptionFactory.getVaultAddress(creator1.address);
       const creatorVault = await ethers.getContractAt("CreatorVault", vaultAddress);
 
-      // Create tier
       await creatorVault.connect(creator1).createTier(
         "Bronze",
         "Basic tier",
@@ -261,7 +253,6 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1, subscriberNFT } = await loadFixture(setupSubscriptionFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Approve spending
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("10", 6));
       
       await expect(
@@ -272,7 +263,6 @@ describe("SubscriptionFactory", function () {
       expect(subscription.isActive).to.be.true;
       expect(subscription.amount).to.equal(ethers.parseUnits("5", 6));
 
-      // Check NFT was minted
       const badges = await subscriberNFT.getUserBadges(subscriber1.address);
       expect(badges.length).to.equal(1);
     });
@@ -282,7 +272,7 @@ describe("SubscriptionFactory", function () {
       
       await expect(
         creatorVault.connect(subscriber1).subscribe(1, ethers.ZeroAddress, {
-          value: ethers.parseUnits("5", 6) // Note: simplified for testing
+          value: ethers.parseUnits("5", 6) 
         })
       ).to.emit(creatorVault, "SubscriptionCreated");
     });
@@ -291,11 +281,9 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1 } = await loadFixture(setupSubscriptionFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // First subscription
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("10", 6));
       await creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress);
       
-      // Try to subscribe again
       await expect(
         creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress)
       ).to.be.revertedWith("Already subscribed");
@@ -305,11 +293,9 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1, subscriberNFT } = await loadFixture(setupSubscriptionFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Create subscription
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("10", 6));
       await creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress);
       
-      // Cancel subscription
       await expect(
         creatorVault.connect(subscriber1).cancelSubscription(1)
       ).to.emit(creatorVault, "SubscriptionCancelled");
@@ -317,7 +303,6 @@ describe("SubscriptionFactory", function () {
       const subscription = await creatorVault.getSubscription(subscriber1.address, 1);
       expect(subscription.isActive).to.be.false;
 
-      // Check NFT was burned
       const badges = await subscriberNFT.getUserBadges(subscriber1.address);
       expect(badges.length).to.equal(0);
     });
@@ -326,7 +311,6 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, creator1, subscriber1, subscriber2 } = await loadFixture(setupSubscriptionFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Create tier with max 1 subscriber
       await creatorVault.connect(creator1).createTier(
         "Limited",
         "Limited tier",
@@ -334,11 +318,9 @@ describe("SubscriptionFactory", function () {
         1
       );
 
-      // First subscriber
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("20", 6));
       await creatorVault.connect(subscriber1).subscribe(2, mockUSDCAddress);
       
-      // Second subscriber should fail
       await mockUSDC.connect(subscriber2).approve(await creatorVault.getAddress(), ethers.parseUnits("20", 6));
       await expect(
         creatorVault.connect(subscriber2).subscribe(2, mockUSDCAddress)
@@ -352,7 +334,6 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1 } = fixture;
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Create subscription
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("100", 6));
       await creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress);
 
@@ -363,10 +344,8 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1 } = await loadFixture(setupPaymentFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Fast forward time to next billing period
-      await time.increase(30 * 24 * 60 * 60); // 30 days
+      await time.increase(30 * 24 * 60 * 60); 
       
-      // Ensure subscriber has enough balance and allowance
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("100", 6));
       
       await expect(
@@ -385,8 +364,7 @@ describe("SubscriptionFactory", function () {
     it("Should not process payment after grace period", async function () {
       const { creatorVault, subscriber1 } = await loadFixture(setupPaymentFixture);
       
-      // Fast forward past grace period
-      await time.increase(38 * 24 * 60 * 60); // 38 days (30 + 8 days grace)
+      await time.increase(38 * 24 * 60 * 60); 
       
       await expect(
         creatorVault.processRecurringPayment(subscriber1.address, 1)
@@ -400,7 +378,6 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1 } = fixture;
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Create subscription
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("100", 6));
       await creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress);
 
@@ -413,7 +390,7 @@ describe("SubscriptionFactory", function () {
       
       const balance = await creatorVault.getCreatorBalance(mockUSDCAddress);
       const subscriptionAmount = ethers.parseUnits("5", 6);
-      const platformFee = (subscriptionAmount * 250n) / 10000n; // 2.5%
+      const platformFee = (subscriptionAmount * 250n) / 10000n; 
       const expectedCreatorEarnings = subscriptionAmount - platformFee;
       
       expect(balance.available).to.equal(expectedCreatorEarnings);
@@ -433,7 +410,6 @@ describe("SubscriptionFactory", function () {
       const finalBalance = await mockUSDC.balanceOf(creator1.address);
       expect(finalBalance).to.be.gt(initialBalance);
       
-      // Check vault balance is now zero
       const vaultBalance = await creatorVault.getCreatorBalance(mockUSDCAddress);
       expect(vaultBalance.available).to.equal(0);
     });
@@ -451,10 +427,8 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, creator1, mockUSDC } = await loadFixture(setupEarningsFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Withdraw once
       await creatorVault.connect(creator1).withdrawEarnings(mockUSDCAddress);
       
-      // Try to withdraw again
       await expect(
         creatorVault.connect(creator1).withdrawEarnings(mockUSDCAddress)
       ).to.be.revertedWith("No funds available");
@@ -466,7 +440,7 @@ describe("SubscriptionFactory", function () {
       const { subscriptionFactory, owner } = await loadFixture(deployFixture);
       
       await expect(
-        subscriptionFactory.connect(owner).setPlatformFeeRate(500) // 5%
+        subscriptionFactory.connect(owner).setPlatformFeeRate(500) 
       ).to.emit(subscriptionFactory, "PlatformFeeUpdated");
       
       expect(await subscriptionFactory.platformFeeRate()).to.equal(500);
@@ -476,7 +450,7 @@ describe("SubscriptionFactory", function () {
       const { subscriptionFactory, owner } = await loadFixture(deployFixture);
       
       await expect(
-        subscriptionFactory.connect(owner).setPlatformFeeRate(1100) // 11%
+        subscriptionFactory.connect(owner).setPlatformFeeRate(1100) 
       ).to.be.revertedWith("Fee rate too high");
     });
 
@@ -484,7 +458,6 @@ describe("SubscriptionFactory", function () {
       const { subscriptionFactory, mockUSDC, creator1, owner } = await loadFixture(deployFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Register creator first
       await subscriptionFactory.connect(creator1).registerCreator(
         "Test Creator",
         "Description",
@@ -516,7 +489,6 @@ describe("SubscriptionFactory", function () {
       const { creatorVault, mockUSDC, subscriber1 } = fixture;
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Create subscription to mint NFT
       await mockUSDC.connect(subscriber1).approve(await creatorVault.getAddress(), ethers.parseUnits("100", 6));
       await creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress);
 
@@ -538,7 +510,6 @@ describe("SubscriptionFactory", function () {
     it("Should burn NFT badge on cancellation", async function () {
       const { creatorVault, subscriberNFT, subscriber1 } = await loadFixture(setupNFTFixture);
       
-      // Cancel subscription
       await creatorVault.connect(subscriber1).cancelSubscription(1);
       
       const badges = await subscriberNFT.getUserBadges(subscriber1.address);
@@ -588,10 +559,7 @@ describe("SubscriptionFactory", function () {
     });
 
     it("Should handle reentrancy protection", async function () {
-      // This test would require a malicious contract to test reentrancy
-      // For now, we just verify the contracts have the nonReentrant modifier
       const { creatorVault } = await loadFixture(setupSubscriptionFixture);
-      // The contract compilation itself ensures nonReentrant modifiers are present
       expect(await creatorVault.getAddress()).to.be.properAddress;
     });
 
@@ -599,7 +567,6 @@ describe("SubscriptionFactory", function () {
       const { subscriptionFactory, mockUSDC, creator1, subscriber1, subscriber2 } = await loadFixture(deployFixture);
       const mockUSDCAddress = await mockUSDC.getAddress();
       
-      // Register creator
       await subscriptionFactory.connect(creator1).registerCreator(
         "Test Creator",
         "Description",
@@ -609,18 +576,15 @@ describe("SubscriptionFactory", function () {
       const vaultAddress = await subscriptionFactory.getVaultAddress(creator1.address);
       const creatorVault = await ethers.getContractAt("CreatorVault", vaultAddress);
       
-      // Create multiple tiers
       await creatorVault.connect(creator1).createTier("Bronze", "Bronze tier", ethers.parseUnits("5", 6), 0);
       await creatorVault.connect(creator1).createTier("Silver", "Silver tier", ethers.parseUnits("10", 6), 0);
       
-      // Multiple subscriptions
       await mockUSDC.connect(subscriber1).approve(vaultAddress, ethers.parseUnits("100", 6));
       await mockUSDC.connect(subscriber2).approve(vaultAddress, ethers.parseUnits("100", 6));
       
       await creatorVault.connect(subscriber1).subscribe(1, mockUSDCAddress);
       await creatorVault.connect(subscriber2).subscribe(2, mockUSDCAddress);
       
-      // Verify platform stats
       const stats = await subscriptionFactory.getPlatformStats();
       expect(stats.totalSubscriptions).to.equal(2);
       expect(stats.totalCreators).to.equal(1);
@@ -634,7 +598,6 @@ async function setupSubscriptionFixture() {
   const { subscriptionFactory, mockUSDC, creator1 } = fixture;
   const mockUSDCAddress = await mockUSDC.getAddress();
   
-  // Register creator
   await subscriptionFactory.connect(creator1).registerCreator(
     "Test Creator",
     "A test creator",
@@ -644,7 +607,6 @@ async function setupSubscriptionFixture() {
   const vaultAddress = await subscriptionFactory.getVaultAddress(creator1.address);
   const creatorVault = await ethers.getContractAt("CreatorVault", vaultAddress);
 
-  // Create tier
   await creatorVault.connect(creator1).createTier(
     "Bronze",
     "Basic tier",
