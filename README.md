@@ -1,10 +1,10 @@
-# SubBase — Onchain Subscriptions for Creators
+# SubVault — Onchain Subscriptions for Creators
 
 [![Base Ecosystem](https://img.shields.io/badge/Base-Onchain-green)](https://base.org)
 
 ## 💳 Overview
 
-**SubBase** is an onchain subscription platform that allows creators (artists, writers, streamers, developers) to monetize their content directly on Base. Fans can subscribe using USDC or ETH through a **trustless, permissionless smart contract**, enabling recurring payments without intermediaries.
+**SubVault** is an onchain subscription platform that allows creators (artists, writers, streamers, developers) to monetize their content directly on Base. Fans can subscribe using USDC or ETH through a **trustless, permissionless smart contract**, enabling recurring payments without intermediaries.
 
 Think of it like Patreon, but fully decentralized and fully transparent.
 
@@ -34,7 +34,7 @@ Think of it like Patreon, but fully decentralized and fully transparent.
 
 ---
 
-## 🏆 Why SubBase?
+## 🏆 Why SubVault?
 
 - **Creator Economy Focused** — supports creators directly and transparently.
 - **High Engagement** — recurring subscriptions drive repeat transactions on Base.
