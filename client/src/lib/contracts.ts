@@ -1,10 +1,8 @@
 import type { Address } from 'viem'
 
-// Contract addresses (replace with actual deployed addresses)
 export const CREATOR_VAULT_FACTORY = '0x...' as Address
 export const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address // USDC on Base
 
-// Contract ABIs (simplified versions based on the smart contract structure)
 export const CREATOR_VAULT_ABI = [
   {
     "inputs": [

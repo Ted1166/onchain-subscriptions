@@ -8,16 +8,9 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./SubscriberNFT.sol";
 
-// Minimal ownable interface to read owner from factory
 interface IOwnable {
     function owner() external view returns (address);
 }
-
-// interface ISubscriptionFactory {
-//     function platformFeeRate() external view returns (uint256); // bps (e.g., 250 = 2.5%)
-//     function recordSubscription(address subscriber, uint256 tierId, uint256 amount) external;
-//     function recordWithdrawal(address creator, uint256 amount, address token) external;
-// }
 
 /**
  * @title CreatorVault
@@ -27,20 +20,20 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     struct SubscriptionTier {
-        uint256 price;            // price per period (in smallest units of token used in subscription)
+        uint256 price;       
         string name;
         string description;
-        uint256 maxSubscribers;   // 0 = unlimited
+        uint256 maxSubscribers;   
         uint256 currentSubscribers;
         bool isActive;
     }
 
     struct Subscription {
         uint256 tierId;
-        uint256 amount;       // price locked at subscription time (can be updated by tier changes when renewed if desired)
+        uint256 amount;       
         uint256 lastPayment;
         uint256 nextPayment;
-        address token;        // ERC20 token used for this subscription
+        address token;        
         bool isActive;
     }
 
@@ -50,41 +43,31 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         uint256 totalEarned;
     }
 
-    // Constants
     uint256 public constant BILLING_PERIOD = 30 days;
     uint256 public constant GRACE_PERIOD   = 7 days;
 
-    // Contract references
     ISubscriptionFactory public immutable factory;
     SubscriberNFT public immutable subscriberNFT;
 
-    // Creator info
     address public creator;
 
-    // Accepted ERC20s
     mapping(address => bool) public acceptedTokens;
     address[] public acceptedTokensList;
 
-    // Tiers
     mapping(uint256 => SubscriptionTier) public tiers;
     uint256 public nextTierId = 1;
 
-    // Subscriptions
     mapping(address => mapping(uint256 => Subscription)) public subscriptions;
     mapping(address => uint256[]) private _userTiers;
-    mapping(address => mapping(uint256 => uint256)) private _userTierIndex; // user => tierId => index in _userTiers[user]
+    mapping(address => mapping(uint256 => uint256)) private _userTierIndex; 
 
-    // Balances: for this creator, per token
-    mapping(address => CreatorBalance) public balances; // token => balance
+    mapping(address => CreatorBalance) public balances; 
 
-    // Platform fees accrued per token
-    mapping(address => uint256) public platformFees; // token => amount
+    mapping(address => uint256) public platformFees;
 
-    // Tracking
-    mapping(address => uint256) public totalSubscribersByToken; // token => count
+    mapping(address => uint256) public totalSubscribersByToken; 
     uint256 public totalActiveSubscriptions;
 
-    // Events
     event TierCreated(uint256 indexed tierId, string name, uint256 price);
     event TierUpdated(uint256 indexed tierId, string name, uint256 price, bool isActive);
     event SubscriptionCreated(address indexed subscriber, uint256 indexed tierId, uint256 amount, address token);
@@ -196,10 +179,8 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
 
         uint256 amount = tier.price;
 
-        // Pull first period payment
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
-        // Record subscription
         subscriptions[msg.sender][tierId] = Subscription({
             tierId: tierId,
             amount: amount,
@@ -209,7 +190,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
             isActive: true
         });
 
-        // Track user's tiers (O(1) remove supported)
         _userTierIndex[msg.sender][tierId] = _userTiers[msg.sender].length;
         _userTiers[msg.sender].push(tierId);
 
@@ -217,13 +197,11 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         totalSubscribersByToken[token]++;
         totalActiveSubscriptions++;
 
-        // Split payment
         (uint256 creatorAmount, uint256 feeAmount) = _split(amount);
         balances[token].available += creatorAmount;
         balances[token].totalEarned += creatorAmount;
         platformFees[token] += feeAmount;
 
-        // Mint subscriber NFT (this vault must be recognized by factory as a valid vault)
         subscriberNFT.mintBadge(msg.sender, tierId, tier.name);
 
         factory.recordSubscription(msg.sender, tierId, amount);
@@ -240,10 +218,8 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         tiers[tierId].currentSubscribers--;
         totalActiveSubscriptions--;
 
-        // O(1) remove from user tiers
         _removeUserTier(msg.sender, tierId);
 
-        // Burn subscriber NFT
         subscriberNFT.burnBadge(msg.sender, tierId);
 
         emit SubscriptionCancelled(msg.sender, tierId);
@@ -264,17 +240,14 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         address token = sub.token;
         uint256 amount = sub.amount;
 
-        // Pull payment
         IERC20 tokenContract = IERC20(token);
         require(tokenContract.balanceOf(subscriber) >= amount, "Low balance");
         require(tokenContract.allowance(subscriber, address(this)) >= amount, "Low allowance");
         tokenContract.safeTransferFrom(subscriber, address(this), amount);
 
-        // Update subscription
         sub.lastPayment = block.timestamp;
         sub.nextPayment = block.timestamp + BILLING_PERIOD;
 
-        // Split payment
         (uint256 creatorAmount, uint256 feeAmount) = _split(amount);
         balances[token].available += creatorAmount;
         balances[token].totalEarned += creatorAmount;
@@ -282,8 +255,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
 
         emit PaymentProcessed(subscriber, tierId, amount, token);
     }
-
-    // ---------------- Payouts ----------------
 
     function withdrawEarnings(address token) external onlyCreator nonReentrant {
         uint256 available = balances[token].available;
@@ -306,8 +277,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         emit PlatformFeesWithdrawn(to, amt, token);
     }
 
-    // ---------------- Token management ----------------
-
     function addAcceptedToken(address token) external onlyCreator {
         require(token != address(0), "ETH not supported");
         require(!acceptedTokens[token], "Already accepted");
@@ -320,7 +289,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         require(acceptedTokens[token], "Not accepted");
         acceptedTokens[token] = false;
 
-        // Remove from array
         uint256 len = acceptedTokensList.length;
         for (uint256 i = 0; i < len; i++) {
             if (acceptedTokensList[i] == token) {
@@ -333,12 +301,10 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         emit TokenRemoved(token);
     }
 
-    // ---------------- Admin (factory owner) ----------------
 
     function pause() external onlyFactoryOwner { _pause(); }
     function unpause() external onlyFactoryOwner { _unpause(); }
 
-    // ---------------- Views ----------------
 
     function getTier(uint256 tierId) external view returns (SubscriptionTier memory) {
         return tiers[tierId];
@@ -378,7 +344,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         return nextTierId - 1;
     }
 
-    // ---------------- Internal helpers ----------------
 
     function _split(uint256 amount) internal view returns (uint256 creatorAmount, uint256 feeAmount) {
         uint256 feeBps = factory.platformFeeRate();
@@ -399,7 +364,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         delete _userTierIndex[user][tierId];
     }
 
-    // Accept no ETH (explicitly)
     receive() external payable {
         revert("ETH not supported");
     }

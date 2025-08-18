@@ -7,10 +7,6 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./CreatorVault.sol";
 import "./SubscriberNFT.sol";
 
-/**
- * @title SubscriptionFactory
- * @dev Factory contract for creating and managing creator vaults
- */
 contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
     struct CreatorInfo {
         address vaultAddress;
@@ -28,26 +24,20 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 totalVolume;
     }
 
-    // Platform fee (basis points, e.g., 250 = 2.5%)
     uint256 public platformFeeRate = 500;
-    uint256 public constant MAX_FEE_RATE = 1000; // 10% max fee
+    uint256 public constant MAX_FEE_RATE = 1000; 
 
-    // Supported tokens
     mapping(address => bool) public supportedTokens;
     address[] public supportedTokensList;
 
-    // Creator management
     mapping(address => CreatorInfo) public creators;
     mapping(address => address) public vaultToCreator;
     address[] public creatorsList;
 
-    // Platform statistics
     PlatformStats public stats;
 
-    // NFT contract for subscriber badges
     SubscriberNFT public subscriberNFT;
 
-    // Events
     event CreatorRegistered(
         address indexed creator,
         address indexed vault,
@@ -73,13 +63,9 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
     );
 
     constructor(address initialOwner) Ownable(initialOwner) {
-        // Deploy subscriber NFT contract
         subscriberNFT = new SubscriberNFT(address(this), "Subscriber Badge", "SUB");
     }
 
-    /**
-     * @dev Register a new creator and deploy their vault
-     */
     function registerCreator(
         string calldata name,
         string calldata description,
@@ -88,12 +74,10 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         require(bytes(name).length > 0, "Name cannot be empty");
         require(creators[msg.sender].vaultAddress == address(0), "Creator already registered");
         
-        // Validate accepted tokens
         for (uint256 i = 0; i < acceptedTokens.length; i++) {
             require(supportedTokens[acceptedTokens[i]], "Token not supported");
         }
 
-        // Deploy new creator vault
         CreatorVault vault = new CreatorVault(
             msg.sender,
             address(this),
@@ -102,7 +86,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         );
         vaultAddress = address(vault);
 
-        // Store creator info
         creators[msg.sender] = CreatorInfo({
             vaultAddress: vaultAddress,
             name: name,
@@ -114,7 +97,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         vaultToCreator[vaultAddress] = msg.sender;
         creatorsList.push(msg.sender);
 
-        // Update stats
         stats.totalCreators++;
         stats.activeCreators++;
         stats.totalVaults++;
@@ -122,9 +104,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit CreatorRegistered(msg.sender, vaultAddress, name, description);
     }
 
-    /**
-     * @dev Deactivate a creator (emergency use)
-     */
     function deactivateCreator(address creator) external onlyOwner {
         require(creators[creator].vaultAddress != address(0), "Creator not found");
         require(creators[creator].isActive, "Creator already deactivated");
@@ -137,9 +116,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit CreatorDeactivated(creator, creators[creator].vaultAddress);
     }
 
-    /**
-     * @dev Reactivate a creator
-     */
     function reactivateCreator(address creator) external onlyOwner {
         require(creators[creator].vaultAddress != address(0), "Creator not found");
         require(!creators[creator].isActive, "Creator already active");
@@ -152,9 +128,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit CreatorReactivated(creator, creators[creator].vaultAddress);
     }
 
-    /**
-     * @dev Add supported token
-     */
     function addSupportedToken(address token, string calldata symbol) external onlyOwner {
         require(token != address(0), "Invalid token address");
         require(!supportedTokens[token], "Token already supported");
@@ -165,15 +138,11 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit TokenAdded(token, symbol);
     }
 
-    /**
-     * @dev Remove supported token
-     */
     function removeSupportedToken(address token, string calldata symbol) external onlyOwner {
         require(supportedTokens[token], "Token not supported");
 
         supportedTokens[token] = false;
 
-        // Remove from array
         for (uint256 i = 0; i < supportedTokensList.length; i++) {
             if (supportedTokensList[i] == token) {
                 supportedTokensList[i] = supportedTokensList[supportedTokensList.length - 1];
@@ -185,9 +154,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit TokenRemoved(token, symbol);
     }
 
-    /**
-     * @dev Update platform fee rate
-     */
     function setPlatformFeeRate(uint256 newFeeRate) external onlyOwner {
         require(newFeeRate <= 1000, "Max 10%");
         uint256 oldFee = platformFeeRate;
@@ -195,9 +161,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit PlatformFeeUpdated(oldFee, newFeeRate);
     }
 
-    /**
-     * @dev Called by vaults to record subscription events
-     */
     function recordSubscription(
         address subscriber,
         uint256 tierId,
@@ -211,9 +174,6 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit SubscriptionCreated(msg.sender, subscriber, tierId, amount);
     }
 
-    /**
-     * @dev Called by vaults to record payment withdrawals
-     */
     function recordWithdrawal(
         address creator,
         uint256 amount,
@@ -225,21 +185,14 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         emit PaymentWithdrawn(msg.sender, creator, amount, token);
     }
 
-    /**
-     * @dev Pause the factory (emergency)
-     */
     function pause() external onlyOwner {
         _pause();
     }
 
-    /**
-     * @dev Unpause the factory
-     */
     function unpause() external onlyOwner {
         _unpause();
     }
 
-    // View functions
     function getCreatorInfo(address creator) external view returns (CreatorInfo memory) {
         return creators[creator];
     }

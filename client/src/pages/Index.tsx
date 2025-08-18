@@ -4,7 +4,6 @@ import FeaturedCreators from "@/components/FeaturedCreators";
 import HowItWorks from "@/components/HowItWorks";
 import CreatorProfile from "@/components/CreatorProfile";
 
-// Mock data for creator profile
 const mockCreator = {
   name: "Alex Chen",
   avatar: "/placeholder.svg",
@@ -12,7 +11,7 @@ const mockCreator = {
   category: "Web3 Developer",
   totalSubscribers: 234,
   monthlyRevenue: 2340,
-  vaultAddress: "0x..." // Replace with actual deployed vault address
+  vaultAddress: "0x..." 
 };
 
 const mockTiers = [
