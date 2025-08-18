@@ -2,7 +2,7 @@ import { createConfig, http } from 'wagmi'
 import { base, baseSepolia } from 'wagmi/chains'
 import { metaMask, walletConnect } from 'wagmi/connectors'
 
-const projectId = 'your-project-id' // Replace with your WalletConnect project ID
+const projectId = 'your-project-id'
 
 export const config = createConfig({
   chains: [base, baseSepolia],
