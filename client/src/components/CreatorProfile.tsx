@@ -41,12 +41,10 @@ const CreatorProfile = ({ creator, tiers }: CreatorProfileProps) => {
       return
     }
 
-    // This would integrate with the useCreatorVault hook
     alert(`Subscribe to ${tier.name} for ${tier.price} ${tier.currency}`)
   }
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
-      {/* Creator Header */}
       <div className="flex flex-col md:flex-row gap-8 mb-12">
         <div className="flex-shrink-0">
           <Avatar className="w-32 h-32">
@@ -80,7 +78,6 @@ const CreatorProfile = ({ creator, tiers }: CreatorProfileProps) => {
         </div>
       </div>
 
-      {/* Subscription Tiers */}
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-6">Choose Your Support Level</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
