@@ -8,10 +8,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 
-/**
- * @title SubscriberNFT
- * @dev Soulbound NFT badges for subscribers
- */
 contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
     using Counters for Counters.Counter;
     using Strings for uint256;
@@ -20,30 +16,23 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         address creator;
         address subscriber;
         uint256 tierId;
-        string tierName;    // stored sanitized
+        string tierName;   
         uint256 mintedAt;
         bool isActive;
     }
 
     Counters.Counter private _tokenIds;
 
-    // Factory contract that can mint/burn via vaults
     address public factory;
 
-    // Badge tracking
     mapping(uint256 => Badge) public badges;
-    // subscriber => creator => tierId => tokenId
     mapping(address => mapping(address => mapping(uint256 => uint256))) public userBadges;
 
-    // Per-user token lists + O(1) removal helpers
     mapping(address => uint256[]) private _userTokens;
-    // owner => tokenId => index in _userTokens[owner]
     mapping(address => mapping(uint256 => uint256)) private _userTokenIndex;
 
-    // Active supply counter (excludes burned)
     uint256 public activeSupply;
 
-    // Colors for different tier levels
     string[] private tierColors = [
         "#FFD700", // Gold
         "#C0C0C0", // Silver
@@ -89,7 +78,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         factory = _factory;
     }
 
-    /// @notice Owner can update factory address
     function setFactory(address _factory) external onlyOwner {
         require(_factory != address(0), "Invalid factory");
         factory = _factory;
@@ -108,13 +96,11 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         address creator = getCreatorFromVault(msg.sender);
         require(creator != address(0), "Creator not found");
 
-        // Ensure unique (subscriber, creator, tierId)
         require(userBadges[subscriber][creator][tierId] == 0, "Badge exists");
 
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
 
-        // Store sanitized/capped tier name
         string memory cleanTier = _sanitizeText(tierName, 40);
 
         badges[tokenId] = Badge({
@@ -128,11 +114,9 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
 
         userBadges[subscriber][creator][tierId] = tokenId;
 
-        // Track per-owner tokens with O(1) removal support
         _userTokenIndex[subscriber][tokenId] = _userTokens[subscriber].length;
         _userTokens[subscriber].push(tokenId);
 
-        // Mint NFT (may trigger onERC721Received on contracts)
         _safeMint(subscriber, tokenId);
 
         activeSupply += 1;
@@ -141,9 +125,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         return tokenId;
     }
 
-    /**
-     * @dev Burn (revoke) a subscriber badge
-     */
     function burnBadge(address subscriber, uint256 tierId)
         external
         onlyVault
@@ -156,23 +137,17 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         require(tokenId != 0, "Badge missing");
         require(badges[tokenId].isActive, "Badge inactive");
 
-        // Mark inactive and clear unique mapping
         badges[tokenId].isActive = false;
         userBadges[subscriber][creator][tierId] = 0;
 
-        // O(1) remove from user's token list
         _removeUserToken(subscriber, tokenId);
 
-        // Burn token (metadata won't be accessible afterwards via tokenURI)
         _burn(tokenId);
         activeSupply -= 1;
 
         emit BadgeBurned(tokenId, creator, subscriber, tierId);
     }
 
-    /**
-    * @dev Soulbound enforcement: only mint (from=0) and burn (to=0) allowed.
-    */
     function _update(
         address to,
         uint256 tokenId,
@@ -184,11 +159,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         return super._update(to, tokenId, auth);
     }
 
-
-
-    /**
-     * @dev Disable approvals
-     */
     function approve(address, uint256) public pure override {
         revert("Soulbound");
     }
@@ -224,12 +194,10 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         return userBadges[subscriber][creator][tierId];
     }
 
-    /// @notice Total minted (lifetime)
     function totalMinted() external view returns (uint256) {
         return _tokenIds.current();
     }
 
-    /// @notice Active supply (not burned)
     function totalActive() external view returns (uint256) {
         return activeSupply;
     }
@@ -289,7 +257,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
             )
         );
 
-        // JSON
         string memory json = Base64.encode(
             bytes(
                 string(
@@ -325,12 +292,10 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         delete _userTokenIndex[owner][tokenId];
     }
 
-    // Convert address to 0x-prefixed, 40-hex-chars (full)
     function _toHexString(address a) internal pure returns (string memory) {
         return Strings.toHexString(uint160(a), 20);
     }
 
-    // Very light sanitization: strip problematic chars and cap length
     function _sanitizeText(string memory input, uint256 maxLen) internal pure returns (string memory) {
         bytes memory src = bytes(input);
         uint256 n = src.length;
@@ -339,7 +304,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         bytes memory out = new bytes(n);
         for (uint256 i = 0; i < n; i++) {
             bytes1 c = src[i];
-            // Replace <, >, ", & with space to avoid SVG/XML issues
             if (c == 0x3C || c == 0x3E || c == 0x22 || c == 0x26) {
                 out[i] = 0x20;
             } else {
@@ -368,7 +332,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
     }
 }
 
-// Interface for factory contract
 interface ISubscriptionFactory {
     function getCreatorFromVault(address vault) external view returns (address);
     function createVault(address creator) external returns (address);
