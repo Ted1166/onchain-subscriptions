@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Onchain Subscriptions Design System - Crypto-native purple/blue theme */
-
 @layer base {
   :root {
     --background: 240 10% 3.9%;
