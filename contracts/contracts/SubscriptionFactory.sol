@@ -66,10 +66,8 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
     );
 
     constructor(address initialOwner) Ownable(initialOwner) {
-        // SubscriberNFT will be set after deployment to avoid circular dependency
     }
 
-    // Set SubscriberNFT address after deployment
     function setSubscriberNFT(address _subscriberNFT) external onlyOwner {
         require(subscriberNFT == address(0), "Already set");
         require(_subscriberNFT != address(0), "Invalid address");
