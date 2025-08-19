@@ -19,7 +19,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         bool isActive;
     }
 
-    // Replaced Counters with simple uint256
     uint256 private _tokenIdCounter = 0;
 
     address public factory;
@@ -94,7 +93,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
 
         require(userBadges[subscriber][creator][tierId] == 0, "Badge exists");
 
-        // Increment and get new token ID
         ++_tokenIdCounter;
         uint256 tokenId = _tokenIdCounter;
 
