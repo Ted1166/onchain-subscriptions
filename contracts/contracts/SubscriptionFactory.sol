@@ -2,10 +2,13 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
-import "./CreatorVault.sol";
-import "./SubscriberNFT.sol";
+
+interface ICreatorVault {
+    function pause() external;
+    function unpause() external;
+}
 
 contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
     struct CreatorInfo {
@@ -24,8 +27,8 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 totalVolume;
     }
 
-    uint256 public platformFeeRate = 500;
-    uint256 public constant MAX_FEE_RATE = 1000; 
+    uint256 public platformFeeRate = 500; // 5%
+    uint256 public constant MAX_FEE_RATE = 1000; // 10%
 
     mapping(address => bool) public supportedTokens;
     address[] public supportedTokensList;
@@ -36,7 +39,7 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
 
     PlatformStats public stats;
 
-    SubscriberNFT public subscriberNFT;
+    address public subscriberNFT;
 
     event CreatorRegistered(
         address indexed creator,
@@ -63,28 +66,24 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
     );
 
     constructor(address initialOwner) Ownable(initialOwner) {
-        subscriberNFT = new SubscriberNFT(address(this), "Subscriber Badge", "SUB");
+        // SubscriberNFT will be set after deployment to avoid circular dependency
+    }
+
+    // Set SubscriberNFT address after deployment
+    function setSubscriberNFT(address _subscriberNFT) external onlyOwner {
+        require(subscriberNFT == address(0), "Already set");
+        require(_subscriberNFT != address(0), "Invalid address");
+        subscriberNFT = _subscriberNFT;
     }
 
     function registerCreator(
         string calldata name,
         string calldata description,
-        address[] calldata acceptedTokens
-    ) external whenNotPaused nonReentrant returns (address vaultAddress) {
+        address vaultAddress
+    ) external whenNotPaused nonReentrant {
         require(bytes(name).length > 0, "Name cannot be empty");
+        require(vaultAddress != address(0), "Invalid vault address");
         require(creators[msg.sender].vaultAddress == address(0), "Creator already registered");
-        
-        for (uint256 i = 0; i < acceptedTokens.length; i++) {
-            require(supportedTokens[acceptedTokens[i]], "Token not supported");
-        }
-
-        CreatorVault vault = new CreatorVault(
-            msg.sender,
-            address(this),
-            address(subscriberNFT),
-            acceptedTokens
-        );
-        vaultAddress = address(vault);
 
         creators[msg.sender] = CreatorInfo({
             vaultAddress: vaultAddress,
@@ -111,7 +110,7 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         creators[creator].isActive = false;
         stats.activeCreators--;
 
-        CreatorVault(payable(creators[creator].vaultAddress)).unpause();
+        ICreatorVault(creators[creator].vaultAddress).pause();
 
         emit CreatorDeactivated(creator, creators[creator].vaultAddress);
     }
@@ -123,7 +122,7 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         creators[creator].isActive = true;
         stats.activeCreators++;
 
-        CreatorVault(payable(creators[creator].vaultAddress)).unpause();
+        ICreatorVault(creators[creator].vaultAddress).unpause();
 
         emit CreatorReactivated(creator, creators[creator].vaultAddress);
     }
@@ -155,7 +154,7 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
     }
 
     function setPlatformFeeRate(uint256 newFeeRate) external onlyOwner {
-        require(newFeeRate <= 1000, "Max 10%");
+        require(newFeeRate <= MAX_FEE_RATE, "Max 10%");
         uint256 oldFee = platformFeeRate;
         platformFeeRate = newFeeRate;
         emit PlatformFeeUpdated(oldFee, newFeeRate);
@@ -193,6 +192,7 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
         _unpause();
     }
 
+    // View functions
     function getCreatorInfo(address creator) external view returns (CreatorInfo memory) {
         return creators[creator];
     }
@@ -223,5 +223,9 @@ contract SubscriptionFactory is Ownable, ReentrancyGuard, Pausable {
 
     function getCreatorFromVault(address vault) external view returns (address) {
         return vaultToCreator[vault];
+    }
+
+    function getSubscriberNFT() external view returns (address) {
+        return subscriberNFT;
     }
 }

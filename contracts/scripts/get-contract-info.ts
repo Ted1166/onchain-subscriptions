@@ -5,7 +5,6 @@ import { join } from "path";
 async function main() {
   console.log(`📊 Getting contract information for ${network.name}...`);
 
-  // Load deployment info
   const deploymentFile = join(__dirname, `../deployments/${network.name}.json`);
   let deploymentInfo;
 
@@ -19,12 +18,10 @@ async function main() {
   const factoryAddress = deploymentInfo.contracts.subscriptionFactory.address;
   const nftAddress = deploymentInfo.contracts.subscriberNFT.address;
 
-  // Get contract instances
   const subscriptionFactory = await ethers.getContractAt("SubscriptionFactory", factoryAddress);
   const subscriberNFT = await ethers.getContractAt("SubscriberNFT", nftAddress);
 
   try {
-    // Factory information
     console.log("\n🏭 SubscriptionFactory Information:");
     console.log("=====================================");
     console.log(`Address: ${factoryAddress}`);
@@ -32,7 +29,6 @@ async function main() {
     console.log(`Platform Fee Rate: ${await subscriptionFactory.platformFeeRate()} basis points`);
     console.log(`Paused: ${await subscriptionFactory.paused()}`);
 
-    // Platform statistics
     console.log("\n📈 Platform Statistics:");
     const stats = await subscriptionFactory.getPlatformStats();
     console.log(`Total Creators: ${stats.totalCreators}`);
@@ -41,7 +37,6 @@ async function main() {
     console.log(`Total Subscriptions: ${stats.totalSubscriptions}`);
     console.log(`Total Volume: ${ethers.formatUnits(stats.totalVolume, 6)} USDC equivalent`);
 
-    // Supported tokens
     console.log("\n🪙 Supported Tokens:");
     const supportedTokens = await subscriptionFactory.getSupportedTokens();
     for (let i = 0; i < supportedTokens.length; i++) {
@@ -60,7 +55,6 @@ async function main() {
       }
     }
 
-    // Creators list
     console.log("\n🎨 Registered Creators:");
     const creatorsList = await subscriptionFactory.getCreatorsList();
     if (creatorsList.length === 0) {
@@ -78,14 +72,12 @@ async function main() {
         console.log(`   Created: ${new Date(Number(creatorInfo.createdAt) * 1000).toLocaleDateString()}`);
         console.log(`   Active: ${creatorInfo.isActive}`);
 
-        // Get vault info
         try {
           const totalTiers = await vault.getTotalTiers();
           const totalActiveSubscriptions = await vault.totalActiveSubscriptions();
           console.log(`   Total Tiers: ${totalTiers}`);
           console.log(`   Active Subscriptions: ${totalActiveSubscriptions}`);
 
-          // Show tiers
           console.log(`   Subscription Tiers:`);
           for (let tierId = 1; tierId <= totalTiers; tierId++) {
             try {
@@ -96,11 +88,9 @@ async function main() {
                 console.log(`       Active: ${tier.isActive}`);
               }
             } catch (error) {
-              // Tier doesn't exist or error occurred
             }
           }
 
-          // Show creator balances
           console.log(`   Balances:`);
           for (const tokenAddress of supportedTokens) {
             try {
@@ -111,7 +101,6 @@ async function main() {
                 console.log(`     ${symbol} - Available: ${ethers.formatUnits(balance.available, decimals)}, Total Earned: ${ethers.formatUnits(balance.totalEarned, decimals)}`);
               }
             } catch (error) {
-              // Balance query failed
             }
           }
         } catch (error) {
@@ -120,7 +109,6 @@ async function main() {
       }
     }
 
-    // NFT Information
     console.log("\n🏅 SubscriberNFT Information:");
     console.log("=============================");
     console.log(`Address: ${nftAddress}`);
@@ -129,11 +117,10 @@ async function main() {
     console.log(`Total Supply: ${await subscriberNFT.getTotalSupply()}`);
     console.log(`Owner: ${await subscriberNFT.owner()}`);
 
-    // Recent events (if any)
     console.log("\n📋 Recent Events:");
     try {
       const currentBlock = await ethers.provider.getBlockNumber();
-      const fromBlock = Math.max(0, currentBlock - 1000); // Last 1000 blocks
+      const fromBlock = Math.max(0, currentBlock - 1000);
 
       const subscriptionEvents = await subscriptionFactory.queryFilter(
         subscriptionFactory.filters.SubscriptionCreated(),
@@ -142,7 +129,7 @@ async function main() {
 
       if (subscriptionEvents.length > 0) {
         console.log("Recent Subscriptions:");
-        for (const event of subscriptionEvents.slice(-5)) { // Show last 5
+        for (const event of subscriptionEvents.slice(-5)) {
           console.log(`  - Vault: ${event.args?.vault}, Subscriber: ${event.args?.subscriber}, Tier: ${event.args?.tierId}, Amount: ${ethers.formatUnits(event.args?.amount || 0, 6)}`);
         }
       } else {
@@ -152,7 +139,6 @@ async function main() {
       console.log("Could not fetch recent events.");
     }
 
-    // Network info
     console.log("\n🌐 Network Information:");
     console.log("=======================");
     console.log(`Network: ${network.name}`);
@@ -160,7 +146,6 @@ async function main() {
     const currentBlock = await ethers.provider.getBlockNumber();
     console.log(`Current Block: ${currentBlock}`);
 
-    // Gas prices (if available)
     try {
       const gasPrice = await ethers.provider.getFeeData();
       console.log(`Gas Price: ${ethers.formatUnits(gasPrice.gasPrice || 0, 'gwei')} gwei`);

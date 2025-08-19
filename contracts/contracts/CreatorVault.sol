@@ -3,19 +3,27 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./SubscriberNFT.sol";
 
 interface IOwnable {
     function owner() external view returns (address);
 }
 
-/**
- * @title CreatorVault
- * @dev Individual creator's subscription vault (ERC20-denominated)
- */
+interface ISubscriptionFactory {
+    function getCreatorFromVault(address vault) external view returns (address);
+    function createVault(address creator) external returns (address);
+    function recordSubscription(address subscriber, uint256 tierId, uint256 amount) external;
+    function recordWithdrawal(address creator, uint256 amount, address token) external;
+    function platformFeeRate() external view returns (uint256);
+}
+
+interface ISubscriberNFT {
+    function mintBadge(address subscriber, uint256 tierId, string calldata tierName) external returns (uint256);
+    function burnBadge(address subscriber, uint256 tierId) external;
+}
+
 contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
@@ -47,7 +55,7 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant GRACE_PERIOD   = 7 days;
 
     ISubscriptionFactory public immutable factory;
-    SubscriberNFT public immutable subscriberNFT;
+    ISubscriberNFT public immutable subscriberNFT;
 
     address public creator;
 
@@ -103,7 +111,7 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         require(_creator != address(0) && _factory != address(0) && _subscriberNFT != address(0), "Zero addr");
         creator = _creator;
         factory = ISubscriptionFactory(_factory);
-        subscriberNFT = SubscriberNFT(_subscriberNFT);
+        subscriberNFT = ISubscriberNFT(_subscriberNFT);
 
         for (uint256 i = 0; i < _acceptedTokens.length; i++) {
             address t = _acceptedTokens[i];
@@ -115,8 +123,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
             }
         }
     }
-
-    // ---------------- Tiers ----------------
 
     function createTier(
         string calldata name,
@@ -161,11 +167,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         emit TierUpdated(tierId, name, price, isActive);
     }
 
-    // ---------------- Subscriptions ----------------
-
-    /**
-     * @dev Subscribe to a tier. ERC20 only.
-     */
     function subscribe(
         uint256 tierId,
         address token
@@ -225,9 +226,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         emit SubscriptionCancelled(msg.sender, tierId);
     }
 
-    /**
-     * @dev Process recurring payment by anyone (keeper/cron), within grace period.
-     */
     function processRecurringPayment(
         address subscriber,
         uint256 tierId
@@ -301,10 +299,8 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
         emit TokenRemoved(token);
     }
 
-
     function pause() external onlyFactoryOwner { _pause(); }
     function unpause() external onlyFactoryOwner { _unpause(); }
-
 
     function getTier(uint256 tierId) external view returns (SubscriptionTier memory) {
         return tiers[tierId];
@@ -343,7 +339,6 @@ contract CreatorVault is Ownable, ReentrancyGuard, Pausable {
     function getTotalTiers() external view returns (uint256) {
         return nextTierId - 1;
     }
-
 
     function _split(uint256 amount) internal view returns (uint256 creatorAmount, uint256 feeAmount) {
         uint256 feeBps = factory.platformFeeRate();

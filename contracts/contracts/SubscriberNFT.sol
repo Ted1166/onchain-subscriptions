@@ -3,25 +3,24 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 
 contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
-    using Counters for Counters.Counter;
     using Strings for uint256;
 
     struct Badge {
         address creator;
         address subscriber;
         uint256 tierId;
-        string tierName;   
+        string tierName;    
         uint256 mintedAt;
         bool isActive;
     }
 
-    Counters.Counter private _tokenIds;
+    // Replaced Counters with simple uint256
+    uint256 private _tokenIdCounter = 0;
 
     address public factory;
 
@@ -83,9 +82,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         factory = _factory;
     }
 
-    /**
-     * @dev Mint a subscriber badge (soulbound)
-     */
     function mintBadge(
         address subscriber,
         uint256 tierId,
@@ -98,8 +94,9 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
 
         require(userBadges[subscriber][creator][tierId] == 0, "Badge exists");
 
-        _tokenIds.increment();
-        uint256 tokenId = _tokenIds.current();
+        // Increment and get new token ID
+        ++_tokenIdCounter;
+        uint256 tokenId = _tokenIdCounter;
 
         string memory cleanTier = _sanitizeText(tierName, 40);
 
@@ -167,8 +164,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         revert("Soulbound");
     }
 
-    // -------- Views --------
-
     function getBadge(uint256 tokenId) external view returns (Badge memory) {
         return badges[tokenId];
     }
@@ -195,22 +190,17 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
     }
 
     function totalMinted() external view returns (uint256) {
-        return _tokenIds.current();
+        return _tokenIdCounter;
     }
 
     function totalActive() external view returns (uint256) {
         return activeSupply;
     }
 
-    /**
-     * @dev Dynamic, on-chain metadata
-     */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_ownerOf(tokenId) != address(0), "ERC721: URI query for nonexistent token");
         return _generateTokenURI(tokenId);
     }
-
-
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -221,8 +211,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         return super.supportsInterface(interfaceId);
     }
 
-    // -------- Internal helpers --------
-
     function _generateTokenURI(uint256 tokenId) internal view returns (string memory) {
         Badge memory badge = badges[tokenId];
         string memory color = tierColors[badge.tierId % tierColors.length];
@@ -230,7 +218,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         string memory creatorStr = _toHexString(badge.creator);
         string memory tierIdStr = badge.tierId.toString();
 
-        // SVG
         string memory svg = string(
             abi.encodePacked(
                 '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">',
@@ -313,9 +300,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         return string(out);
     }
 
-    /**
-     * @dev Check if caller is a valid vault (delegates to factory)
-     */
     function isValidVault(address vault) internal view returns (bool) {
         try ISubscriptionFactory(factory).getCreatorFromVault(vault) returns (address creator) {
             return creator != address(0);
@@ -324,9 +308,6 @@ contract SubscriberNFT is ERC721, Ownable, ReentrancyGuard {
         }
     }
 
-    /**
-     * @dev Get creator address from vault address
-     */
     function getCreatorFromVault(address vault) internal view returns (address) {
         return ISubscriptionFactory(factory).getCreatorFromVault(vault);
     }

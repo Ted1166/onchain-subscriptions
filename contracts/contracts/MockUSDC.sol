@@ -5,10 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
- * @title MockUSDC
- * @dev Mock USDC token for testing purposes
- */
 contract MockUSDC is ERC20, ERC20Permit, Ownable {
     uint8 private _decimals = 6; 
     
@@ -25,16 +21,10 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
         _mint(initialOwner, 1000000 * 10**6); 
     }
 
-    /**
-     * @dev Override decimals to return 6 like real USDC
-     */
     function decimals() public view virtual override returns (uint8) {
         return _decimals;
     }
 
-    /**
-     * @dev Faucet function for testing - allows users to claim free tokens
-     */
     function faucet() external {
         require(
             block.timestamp >= lastFaucetClaim[msg.sender] + FAUCET_COOLDOWN,
@@ -47,17 +37,12 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
         emit FaucetClaimed(msg.sender, FAUCET_AMOUNT);
     }
 
-    /**
-     * @dev Mint tokens to specific address (only owner)
-     */
+   
     function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
         emit TokensMinted(to, amount);
     }
 
-    /**
-     * @dev Batch mint to multiple addresses
-     */
     function batchMint(
         address[] calldata recipients,
         uint256[] calldata amounts
@@ -70,16 +55,10 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
         }
     }
 
-    /**
-     * @dev Check if user can claim from faucet
-     */
     function canClaimFaucet(address user) external view returns (bool) {
         return block.timestamp >= lastFaucetClaim[user] + FAUCET_COOLDOWN;
     }
 
-    /**
-     * @dev Get time remaining until next faucet claim
-     */
     function timeUntilNextFaucetClaim(address user) external view returns (uint256) {
         uint256 nextClaim = lastFaucetClaim[user] + FAUCET_COOLDOWN;
         if (block.timestamp >= nextClaim) {
@@ -88,16 +67,10 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
         return nextClaim - block.timestamp;
     }
 
-    /**
-     * @dev Approve with infinite allowance for testing convenience
-     */
     function approveMax(address spender) external returns (bool) {
         return approve(spender, type(uint256).max);
     }
 
-    /**
-     * @dev Get formatted balance (with proper decimals)
-     */
     function balanceOfFormatted(address account) external view returns (string memory) {
         uint256 balance = balanceOf(account);
         uint256 whole = balance / 10**_decimals;
@@ -113,9 +86,6 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
 
     }
 
-    /**
-     * @dev Convert uint to string
-     */
     function _toString(uint256 value) internal pure returns (string memory) {
         if (value == 0) {
             return "0";
@@ -135,9 +105,6 @@ contract MockUSDC is ERC20, ERC20Permit, Ownable {
         return string(buffer);
     }
 
-    /**
-    * @dev Pad zeros for decimal display
-    */
     function _padZeros(uint256 value, uint8 decimalsCount) internal pure returns (string memory) {
         string memory str = _toString(value);
         bytes memory strBytes = bytes(str);
